@@ -1,0 +1,155 @@
+{
+  "name": "BIA_HW_Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "c33b850a-56dd-4f40-9033-db0b5cb875ec",
+      "name": "When clicking ‘Test workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        360,
+        240
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "37ea3d68-4b48-49b3-a62f-c88983aae824",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1020,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const out_data = {}\nconst year = $input.all()[0].json.data.split('\\n')[1].split(',', 1)[0]\nconst data = $input.all()[0].json.data.split('\\n')[1].slice(6).split('\",')\n\n\nout_data['year'] = Number(year)\nout_data['months'] = []\ndata.slice(0, 12).forEach(function (item, index) {\n  out_data['months'].push(\n    {\n      \"month\": index + 1,\n      \"days\": item.replace('\"', '')\n    }\n  )\n});\n\nconst statistic = data[12].split(',') \nout_data[\"statistic\"] = {\n  \"workdays\": Number(statistic[0]),\n  \"holidays\": Number(statistic[1]),\n  \"hours40\": Number(statistic[2]),\n  \"hours36\": Number(statistic[3]),\n  \"hours24\": Number(statistic[4])\n}\n\nreturn out_data;"
+      },
+      "id": "e0b22929-0f6c-4c79-813e-f14024b6f32b",
+      "name": "CSV to JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://xmlcalendar.ru/data/ru/2022/calendar.csv",
+        "options": {}
+      },
+      "id": "8596542b-070e-4c18-bd8b-25332741ebeb",
+      "name": "GET CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        580,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://xmlcalendar.ru/data/ru/2022/calendar.json",
+        "options": {}
+      },
+      "id": "6024a2c7-a5a3-4f2e-81af-83c3b628313c",
+      "name": "GET JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        580,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data1 = $input.all()[0].json\nconst data2 = $input.all()[1].json\n\nif (data1.year !== data2.year){\n  return {eq: false};\n}\n\nfunction sortObjByKeys(object) {\n  return Object.keys(object).sort().reduce(\n    (obj, key) => { \n      obj[key] = object[key]; \n      return obj;\n    }, \n    {}\n  );\n}\n\nconst data1_statistic = sortObjByKeys(data1.statistic);\nconst data2_statistic = sortObjByKeys(data2.statistic);\nif (JSON.stringify(data1_statistic) !== JSON.stringify(data2_statistic)){\n  return {eq: false};\n}\n\nfunction compareMonthsNumbers(a, b) {\n  return a.month - b.month;\n}\nfor (const month in data1.months) {\n  monthStr1 = JSON.stringify(data1.months[month])\n  monthStr2 = JSON.stringify(data2.months[month])\n  if (monthStr1 !== monthStr2){\n    console.log(monthStr1, '\\n', monthStr2)\n    return {eq: false};\n  }\n}\n\nreturn {eq: true};"
+      },
+      "id": "44a6f7a5-5079-45a7-917b-183528951958",
+      "name": "Compare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        320
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "GET JSON",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GET CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV to JSON": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET CSV": {
+      "main": [
+        [
+          {
+            "node": "CSV to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET JSON": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Compare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "def6ff95-947c-4243-93dd-89f9077b86d3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "07feec6801faabd0cf7b10c99cd5a7437bf040be4bea46cad000573d1be31486"
+  },
+  "id": "mnjT2rr5iPtRSdot",
+  "tags": []
+}
